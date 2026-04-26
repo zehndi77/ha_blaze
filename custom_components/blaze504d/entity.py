@@ -11,6 +11,8 @@ from .const import DOMAIN, CONF_HOST, CONF_NAME, CONF_MODEL_NAME, CONF_SERIAL, C
 class BlazeBaseEntity(CoordinatorEntity):
     """Base entity wiring DeviceInfo from the config entry."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator: DataUpdateCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._attr_device_info = DeviceInfo(

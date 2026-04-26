@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-04-26
+
+### Changed
+- **Signal sensors now use push subscription** instead of individual GET polls. On setup the integration sends `SUBSCRIBE DYN 1` and the device pushes all `DYN.SIGNAL` values at 1 Hz. The `BlazeSignalCoordinator` reads from a local cache populated by these pushes — no per-sensor GET commands issued during polling
+- **Entity naming** (`_attr_has_entity_name = True`): all entities are now scoped to their device in the HA entity registry. Entity IDs change from `sensor.dante_2_signal` to `sensor.{device_name}_dante_2_signal`. **Action required**: delete any signal sensor entities showing "no unique ID" from HA's entity registry (Settings → Devices & Services → device → Entities), then reload the integration
+
+### Fixed
+- **Signal sensors returning no data**: previous GET-based DYN polling timed out because the device delivers DYN values via subscription push, not GET responses
+- **Reader-loop multiplexer**: a background `_reader_task` now owns all incoming WebSocket reads. Subscription DYN pushes go to an internal cache; command responses route to the waiting `asyncio.Future`. Eliminates the race where a DYN push could resolve the wrong command future
+- Lock ownership moved inside `_send_recv`/`_send_fire` (was in callers). Prevents a latent double-lock deadlock when callers chain two commands. Behaviour unchanged — one command in-flight at a time
+- `close()` now awaits the cancelled reader task, preventing resource leaks on integration unload
+
 ## [0.2.2] - 2026-04-26
 
 ### Added

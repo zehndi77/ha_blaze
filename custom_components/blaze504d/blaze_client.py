@@ -27,10 +27,16 @@ class BlazeClient:
         self._host = host
         self._ws: aiohttp.ClientWebSocketResponse | None = None
         self._lock = asyncio.Lock()
+        self._dyn_cache: dict[str, float] = {}
+        self._dyn_subscribed = False
+        self._reader_task: asyncio.Task | None = None
+        self._pending_future: asyncio.Future[str] | None = None
 
     @property
     def _url(self) -> str:
         return f"ws://{self._host}{WS_PATH}"
+
+    # ── Connection management ──────────────────────────────────────────────────
 
     async def _connect(self) -> None:
         try:
@@ -40,82 +46,112 @@ class BlazeClient:
             )
         except (aiohttp.ClientError, OSError, asyncio.TimeoutError) as err:
             raise BlazeConnectionError(f"Cannot connect to {self._url}: {err}") from err
+        if self._reader_task and not self._reader_task.done():
+            self._reader_task.cancel()
+        self._reader_task = asyncio.create_task(self._reader_loop())
 
     async def _ensure_connected(self) -> None:
+        """Must be called with self._lock held."""
         if self._ws is None or self._ws.closed:
             await self._connect()
+            if self._dyn_subscribed:
+                assert self._ws is not None
+                await self._ws.send_str("SUBSCRIBE DYN 1")
 
-    async def _send_with_retry(self, command: str) -> None:
-        """Send command string; reconnect once on transport-close race before raising."""
-        for attempt in range(2):
+    # ── Reader loop (background task) ─────────────────────────────────────────
+
+    def _handle_incoming(self, line: str) -> None:
+        if not line:
+            return
+        _LOGGER.debug("Blaze WS recv: %r", line)
+
+        if line.startswith("+") and ".DYN." in line:
+            # Never route DYN lines to _pending_future: a subscription push arriving
+            # mid-command would resolve the wrong future with the wrong register value.
+            parts = line[1:].rsplit(" ", 1)
+            if len(parts) == 2:
+                try:
+                    self._dyn_cache[parts[0]] = float(parts[1])
+                except ValueError:
+                    _LOGGER.debug("Cannot parse DYN value: %r", line)
+            return
+
+        fut = self._pending_future
+        if fut and not fut.done() and line.startswith(("+", "*", "#")):
+            fut.set_result(line)
+
+    async def _reader_loop(self) -> None:
+        """Background task: reads all incoming WS messages until disconnect."""
+        try:
+            assert self._ws is not None
+            while not self._ws.closed:
+                msg = await self._ws.receive()
+                if msg.type == aiohttp.WSMsgType.TEXT:
+                    for line in msg.data.splitlines():
+                        self._handle_incoming(line.strip())
+                elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                    break
+        except Exception as err:
+            _LOGGER.debug("Blaze reader loop exiting: %s", err)
+        finally:
+            self._ws = None
+            fut = self._pending_future
+            if fut and not fut.done():
+                fut.set_exception(BlazeConnectionError("WebSocket disconnected"))
+
+    # ── Command helpers ────────────────────────────────────────────────────────
+
+    async def _send_recv(self, command: str) -> str:
+        """Send a command; wait for the + value response via the reader loop.
+
+        Acquires self._lock — callers must NOT hold it.
+        """
+        async with self._lock:
             await self._ensure_connected()
             assert self._ws is not None
+            loop = asyncio.get_running_loop()
+            self._pending_future = loop.create_future()
             try:
                 await self._ws.send_str(command)
-                return
-            except aiohttp.ClientConnectionResetError:
+                async with asyncio.timeout(WS_TIMEOUT):
+                    result = await self._pending_future
+            except asyncio.TimeoutError:
                 self._ws = None
-                if attempt == 1:
-                    raise BlazeConnectionError(f"Connection reset sending '{command}'")
-                _LOGGER.debug("Blaze WS reset during send, reconnecting")
+                raise BlazeConnectionError(f"Timeout waiting for response to '{command}'")
             except aiohttp.ClientError as err:
                 self._ws = None
                 raise BlazeConnectionError(f"WebSocket error: {err}") from err
+            finally:
+                self._pending_future = None
 
-    async def _send_recv(self, command: str) -> str:
-        """Send a command and return the first '+' value response line."""
-        await self._send_with_retry(command)
-        assert self._ws is not None
-        try:
-            async with asyncio.timeout(WS_TIMEOUT):
-                while True:
-                    msg = await self._ws.receive()
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        for line in msg.data.splitlines():
-                            line = line.strip()
-                            if not line:
-                                continue
-                            if line.startswith("+"):
-                                return line
-                            if line.startswith("#"):
-                                raise BlazeProtocolError(f"Device error: {line!r}")
-                            _LOGGER.debug("Blaze WS recv: %r", line)
-                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                        self._ws = None
-                        raise BlazeConnectionError("WebSocket closed unexpectedly")
-        except asyncio.TimeoutError as err:
-            self._ws = None
-            raise BlazeConnectionError(f"Timeout waiting for response to '{command}'") from err
-        except aiohttp.ClientError as err:
-            self._ws = None
-            raise BlazeConnectionError(f"WebSocket error: {err}") from err
+        if result.startswith("#"):
+            raise BlazeProtocolError(f"Device error: {result!r}")
+        return result
 
     async def _send_fire(self, command: str) -> None:
-        """Send a command; accept '*' or '+' echo as confirmation (no value response expected)."""
-        await self._send_with_retry(command)
-        assert self._ws is not None
-        try:
-            async with asyncio.timeout(WS_TIMEOUT):
-                while True:
-                    msg = await self._ws.receive()
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        for line in msg.data.splitlines():
-                            line = line.strip()
-                            if not line:
-                                continue
-                            _LOGGER.debug("Blaze WS recv: %r", line)
-                            if line.startswith("+") or line.startswith("*"):
-                                return
-                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                        self._ws = None
-                        raise BlazeConnectionError("WebSocket closed unexpectedly")
-        except asyncio.TimeoutError:
-            # Echo not received; command was sent, state confirmed on next poll.
-            _LOGGER.warning("No ack for '%s' within %ss; command likely applied", command, WS_TIMEOUT)
-            self._ws = None
-        except aiohttp.ClientError as err:
-            self._ws = None
-            raise BlazeConnectionError(f"WebSocket error: {err}") from err
+        """Send a command expecting only a * echo; timeout is non-fatal.
+
+        Acquires self._lock — callers must NOT hold it.
+        """
+        async with self._lock:
+            await self._ensure_connected()
+            assert self._ws is not None
+            loop = asyncio.get_running_loop()
+            self._pending_future = loop.create_future()
+            try:
+                await self._ws.send_str(command)
+                async with asyncio.timeout(WS_TIMEOUT):
+                    await self._pending_future
+            except asyncio.TimeoutError:
+                _LOGGER.warning(
+                    "No ack for '%s' within %ss; command likely applied", command, WS_TIMEOUT
+                )
+                self._ws = None
+            except aiohttp.ClientError as err:
+                self._ws = None
+                raise BlazeConnectionError(f"WebSocket error: {err}") from err
+            finally:
+                self._pending_future = None
 
     @staticmethod
     def _parse_float_response(response: str) -> float:
@@ -146,30 +182,40 @@ class BlazeClient:
             raise ValueError(f"Zone must be one of {ALL_VALID_ZONES}, got {zone!r}")
         return f"ZONE-{zone}"
 
+    # ── DYN subscription ───────────────────────────────────────────────────────
+
+    async def start_dyn_subscription(self, freq: float = 1.0) -> None:
+        """Subscribe to DYN register push updates at the given frequency (Hz)."""
+        async with self._lock:
+            await self._ensure_connected()
+            assert self._ws is not None
+            self._dyn_subscribed = True
+            await self._ws.send_str(f"SUBSCRIBE DYN {freq}")
+
+    def get_dyn_snapshot(self) -> dict[str, float]:
+        """Return a snapshot of the current DYN register cache."""
+        return dict(self._dyn_cache)
+
     # ── Device info ────────────────────────────────────────────────────────────
 
     async def get_zone_count(self) -> int:
-        async with self._lock:
-            resp = await self._send_recv("GET ZONE.COUNT")
+        resp = await self._send_recv("GET ZONE.COUNT")
         return int(self._parse_float_response(resp))
 
     async def get_model_name(self) -> str:
-        async with self._lock:
-            resp = await self._send_recv("GET SYSTEM.DEVICE.MODEL_NAME")
+        resp = await self._send_recv("GET SYSTEM.DEVICE.MODEL_NAME")
         return self._parse_str_response(resp)
 
     async def get_serial(self) -> str:
-        async with self._lock:
-            resp = await self._send_recv("GET SYSTEM.DEVICE.SERIAL")
+        resp = await self._send_recv("GET SYSTEM.DEVICE.SERIAL")
         return self._parse_str_response(resp)
 
     async def get_firmware(self) -> str:
-        async with self._lock:
-            resp = await self._send_recv("GET SYSTEM.DEVICE.FIRMWARE")
+        resp = await self._send_recv("GET SYSTEM.DEVICE.FIRMWARE")
         return self._parse_str_response(resp)
 
     async def get_device_info(self) -> dict:
-        """Return zone_count, model_name, serial, firmware from a single connection."""
+        """Return zone_count, model_name, serial, firmware."""
         return {
             "zone_count": await self.get_zone_count(),
             "model_name": await self.get_model_name(),
@@ -189,50 +235,32 @@ class BlazeClient:
 
     async def get_system_state(self) -> str:
         """Return SYSTEM.STATUS.STATE: INIT | STANDBY | ON | FAULT."""
-        async with self._lock:
-            resp = await self._send_recv("GET SYSTEM.STATUS.STATE")
+        resp = await self._send_recv("GET SYSTEM.STATUS.STATE")
         return self._parse_str_response(resp)
 
-    # ── I/O counts and signal levels ──────────────────────────────────────────
+    # ── I/O counts ────────────────────────────────────────────────────────────
 
     async def get_input_count(self) -> int:
-        async with self._lock:
-            resp = await self._send_recv("GET IN.COUNT")
+        resp = await self._send_recv("GET IN.COUNT")
         return int(self._parse_float_response(resp))
 
     async def get_output_count(self) -> int:
-        async with self._lock:
-            resp = await self._send_recv("GET OUTPUT.COUNT")
+        resp = await self._send_recv("GET OUTPUT.COUNT")
         return int(self._parse_float_response(resp))
-
-    async def get_input_signal(self, iid: int) -> float:
-        """Return dynamic signal level (dB) for analog input IID (100+)."""
-        async with self._lock:
-            resp = await self._send_recv(f"GET IN-{iid}.DYN.SIGNAL")
-        return self._parse_float_response(resp)
-
-    async def get_output_signal(self, oid: int) -> float:
-        """Return dynamic signal level (dB) for output OID (1+)."""
-        async with self._lock:
-            resp = await self._send_recv(f"GET OUT-{oid}.DYN.SIGNAL")
-        return self._parse_float_response(resp)
 
     # ── Power ──────────────────────────────────────────────────────────────────
 
     async def power_on(self) -> None:
-        async with self._lock:
-            await self._send_fire("POWER_ON")
+        await self._send_fire("POWER_ON")
 
     async def power_off(self) -> None:
-        async with self._lock:
-            await self._send_fire("POWER_OFF")
+        await self._send_fire("POWER_OFF")
 
     # ── Zone gain ──────────────────────────────────────────────────────────────
 
     async def get_gain(self, zone: str) -> float:
-        """Return current gain in dB via GET (always returns '+' response per API spec)."""
-        async with self._lock:
-            resp = await self._send_recv(f"GET {self._zone_tag(zone)}.GAIN")
+        """Return current gain in dB."""
+        resp = await self._send_recv(f"GET {self._zone_tag(zone)}.GAIN")
         return self._parse_float_response(resp)
 
     async def set_gain(self, zone: str, db: float) -> float:
@@ -245,23 +273,20 @@ class BlazeClient:
 
     async def inc_gain(self, zone: str, delta: float) -> float:
         """Increment gain by delta dB. Returns new absolute value."""
-        async with self._lock:
-            resp = await self._send_recv(f"INC {self._zone_tag(zone)}.GAIN {delta:.2f}")
+        resp = await self._send_recv(f"INC {self._zone_tag(zone)}.GAIN {delta:.2f}")
         return self._parse_float_response(resp)
 
     # ── Zone mute ──────────────────────────────────────────────────────────────
 
     async def get_mute(self, zone: str) -> bool:
         """Return mute state. GET ZONE-X.MUTE → +ZONE-X.MUTE 0/1."""
-        async with self._lock:
-            resp = await self._send_recv(f"GET {self._zone_tag(zone)}.MUTE")
+        resp = await self._send_recv(f"GET {self._zone_tag(zone)}.MUTE")
         return self._parse_bool_response(resp)
 
     async def set_mute(self, zone: str, muted: bool) -> None:
         """Set mute state. Device expects 1/0 numeric values."""
         value = "1" if muted else "0"
-        async with self._lock:
-            await self._send_fire(f"SET {self._zone_tag(zone)}.MUTE {value}")
+        await self._send_fire(f"SET {self._zone_tag(zone)}.MUTE {value}")
 
     async def set_all_mute(self, muted: bool, zones: list[str]) -> None:
         """Mute or unmute all given zones sequentially."""
@@ -269,5 +294,11 @@ class BlazeClient:
             await self.set_mute(zone, muted)
 
     async def close(self) -> None:
+        if self._reader_task and not self._reader_task.done():
+            self._reader_task.cancel()
+            try:
+                await self._reader_task
+            except asyncio.CancelledError:
+                pass
         if self._ws and not self._ws.closed:
             await self._ws.close()

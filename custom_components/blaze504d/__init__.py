@@ -40,6 +40,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BlazeConfigEntry) -> boo
     coordinator = BlazeCoordinator(hass, client, zones)
     await coordinator.async_config_entry_first_refresh()
 
+    # Start DYN subscription so signal sensors receive push data from the device
+    await client.start_dyn_subscription()
+
     # Query I/O counts independently; fall back to zone_count if unavailable
     try:
         input_count = await client.get_input_count()

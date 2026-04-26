@@ -1,7 +1,7 @@
 {
   "domain": "blaze504d",
   "name": "Blaze PowerZone Connect 504D",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "documentation": "https://github.com/zehndi77/ha_blaze",
   "issue_tracker": "https://github.com/zehndi77/ha_blaze/issues",
   "codeowners": ["@zehndi77"],

@@ -84,25 +84,15 @@ class BlazeSignalCoordinator(DataUpdateCoordinator[dict]):
         self.output_ids = output_ids
 
     async def _async_update_data(self) -> dict:
-        """Fetch DYN.SIGNAL for all inputs and outputs; cache on per-item failure."""
-        prev = self.data or {}
-        prev_inputs = prev.get("inputs", {})
-        prev_outputs = prev.get("outputs", {})
+        """Return latest DYN signal values from the subscription push cache.
 
-        inputs: dict[int, float | None] = {}
-        for iid in self.input_ids:
-            try:
-                inputs[iid] = await self.client.get_input_signal(iid)
-            except (BlazeConnectionError, BlazeProtocolError):
-                inputs[iid] = prev_inputs.get(iid)
-                _LOGGER.debug("Input %d signal query failed, using cached", iid)
-
-        outputs: dict[int, float | None] = {}
-        for oid in self.output_ids:
-            try:
-                outputs[oid] = await self.client.get_output_signal(oid)
-            except (BlazeConnectionError, BlazeProtocolError):
-                outputs[oid] = prev_outputs.get(oid)
-                _LOGGER.debug("Output %d signal query failed, using cached", oid)
-
+        No GET commands issued — data arrives via SUBSCRIBE DYN push from the client.
+        """
+        snapshot = self.client.get_dyn_snapshot()
+        inputs: dict[int, float | None] = {
+            iid: snapshot.get(f"IN-{iid}.DYN.SIGNAL") for iid in self.input_ids
+        }
+        outputs: dict[int, float | None] = {
+            oid: snapshot.get(f"OUT-{oid}.DYN.SIGNAL") for oid in self.output_ids
+        }
         return {"inputs": inputs, "outputs": outputs}
