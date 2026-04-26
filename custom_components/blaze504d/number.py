@@ -16,7 +16,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator: BlazeCoordinator = entry.runtime_data
+    coordinator: BlazeCoordinator = entry.runtime_data.coordinator
     async_add_entities(
         BlazeZoneGain(coordinator, entry, zone) for zone in coordinator.zones
     )

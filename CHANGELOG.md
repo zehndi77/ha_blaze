@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.2] - 2026-04-26
+
+### Added
+- **Input signal sensors** (`sensor`): per-input signal level in dB — analog inputs (Input 1–N), SPDIF L/R, and Dante 1–4. All disabled by default; enable individually in the HA entity registry
+- **Output signal sensors** (`sensor`): per-output signal level in dB (Output 1–N). Also disabled by default
+- Dedicated `BlazeSignalCoordinator` polls signal levels at 60 s (separate from 30 s zone poll); starts lazily only when at least one signal sensor is enabled
+- Input and output counts queried from device at startup (`GET IN.COUNT`, `GET OUTPUT.COUNT`) — independent of zone count; fallback to zone count if unavailable
+
+### Fixed
+- **WebSocket "closing transport" race**: `_send_with_retry` helper reconnects once on `ClientConnectionResetError` before raising — eliminates the dominant cause of coordinator poll failures and 30 s entity unavailability
+- **Mute command timeouts no longer surface as HA errors**: `_send_fire` treats missing `*` echo as a warning (command was sent over reliable WebSocket; state confirmed on next poll). Fixes "Failed to perform the action" errors for merged zones
+- **All-zones mute now completes all zones**: previously aborted at first timeout; now continues through all zones even when one doesn't echo
+- **Coordinator per-zone resilience**: `get_gain` failures fall back to cached value (same pattern as `get_mute`), preventing a single zone query failure from marking all entities unavailable
+- **Mute command format**: `SET ZONE-X.MUTE` now sends `1`/`0` instead of `ON`/`OFF` per API spec
+
 ## [0.2.0] - 2026-04-26
 
 ### Added

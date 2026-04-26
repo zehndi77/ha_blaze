@@ -1,19 +1,26 @@
 # Blaze PowerZone Connect — Home Assistant Integration
 
-Control your **Blaze PowerZone Connect** amplifier from Home Assistant. Set zone gain levels, mute individual zones, and mute all zones at once — no YAML required.
-Currently this is only programmed to work with a 4-channel amplifier.
+Control your **Blaze PowerZone Connect** amplifier from Home Assistant. Set zone gain levels, mute individual zones, monitor input and output signal levels — no YAML required. Supports 2-channel, 4-channel, and 8-channel variants with automatic device detection.
 
 ---
 
 ## Features
 
-| Entity | Type | Description |
-|--------|------|-------------|
-| Zone A–D Gain | `number` (slider, dB) | Read and set gain for each zone |
-| Zone A–D Mute | `switch` | Mute or unmute individual zones |
-| All Zones Mute | `switch` | Mute/unmute all 4 zones simultaneously |
+| Entity | Type | Default | Description |
+|--------|------|---------|-------------|
+| Zone A–N Gain | `number` (slider, dB) | Enabled | Read and set gain per zone |
+| Zone A–N Mute | `switch` | Enabled | Mute or unmute individual zones |
+| All Zones Mute | `switch` | Enabled | Mute/unmute all zones simultaneously |
+| Power | `switch` | Enabled | Power on / standby |
+| System State | `sensor` | Enabled | INIT / STANDBY / ON / FAULT |
+| Input 1–N Signal | `sensor` (dB) | **Disabled** | Analog input signal level |
+| SPDIF L/R Signal | `sensor` (dB) | **Disabled** | SPDIF input signal level |
+| Dante 1–4 Signal | `sensor` (dB) | **Disabled** | Dante input signal level |
+| Output 1–N Signal | `sensor` (dB) | **Disabled** | Output signal level |
 
 The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the native text command protocol — no custom firmware or middleware needed.
+
+Zone count, input count, and output count are all detected automatically on first connection.
 
 ---
 
@@ -47,52 +54,56 @@ The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the na
 2. Search for **Blaze**
 3. Enter the **IP address or hostname** of your amplifier
 4. Give it a friendly name (optional)
-5. Click Submit — HA will verify connectivity before saving
+5. Click Submit — HA will verify connectivity and auto-detect zone/input/output counts before saving
 
-Repeat for each amplifier. Each amp becomes its own device with 9 entities (4 gain + 4 mute + 1 master mute).
+Repeat for each amplifier. Each amp becomes its own HA device.
 
 ---
 
 ## Entities
 
-### Gain (Zone A–D)
+### Zone Gain
 
-- **Entity ID:** `number.<name>_zone_a_gain` (and B/C/D)
-- **Unit:** dB
-- **Range:** –60.0 to 0.0 dB (step 0.5)
+- **Unit:** dB, **Range:** –80.0 to 0.0 dB (step 0.5)
 - Appears as a slider in the HA dashboard
-- Use in automations to set absolute levels: `service: number.set_value`
+- Zone count auto-detected: 2, 4, or 8 zones depending on device variant
 
-### Zone Mute (Zone A–D)
+### Zone Mute
 
-- **Entity ID:** `switch.<name>_zone_a_mute` (and B/C/D)
-- Mutes/unmutes one zone
-- Reflects live state from the amp (polled every 30 s)
+- Per-zone mute switch; reflects live state (polled every 30 s)
+- Uses numeric `1`/`0` values per API spec
 
 ### All Zones Mute
 
-- **Entity ID:** `switch.<name>_all_zones_mute`
 - **ON** only when every zone is muted
-- Turning ON mutes all 4 zones; turning OFF unmutes all 4
+- Continues through all zones even when individual zones don't respond (merged zone support)
+
+### Signal Level Sensors (disabled by default)
+
+Input and output signal sensors show live dB levels from `DYN.SIGNAL` registers. They are **disabled by default** to avoid unnecessary polling overhead.
+
+To enable: go to **Settings → Devices & Services → [your amp] → Entities**, find the sensor, click it, and toggle Enable.
+
+Once at least one signal sensor is enabled, a separate 60 s poll cycle starts for all signal readings. Analog inputs, SPDIF L/R, and Dante 1–4 are all available.
 
 ---
 
 ## Protocol Notes
 
-The Blaze PowerZone  exposes a WebSocket endpoint at `ws://<host>/ws`. Commands are plain text:
+The Blaze PowerZone exposes a WebSocket endpoint at `ws://<host>/ws`. Commands are plain text:
 
 ```
-INC ZONE-A.GAIN 0        → +Zone-A.GAIN -10.00        (read current gain)
-INC ZONE-A.GAIN -3       → +Zone-A.GAIN -13.00         (adjust gain; also echoes *INC ...)
-GET ZONE-A.MUTE          → +ZONE-A.MUTE 0              (0 = unmuted)
-GET ZONE-A.MUTE          → +ZONE-A.MUTE 1              (1 = muted)
-SET ZONE-A.MUTE ON       → *SET ZONE-A.MUTE ON         (echo only, no + response)
-SET ZONE-A.MUTE OFF      → *SET ZONE-A.MUTE OFF
+GET ZONE-A.GAIN          → +ZONE-A.GAIN -10.00        (read gain)
+INC ZONE-A.GAIN -3       → +ZONE-A.GAIN -13.00        (adjust gain)
+GET ZONE-A.MUTE          → +ZONE-A.MUTE 0              (0 = unmuted, 1 = muted)
+SET ZONE-A.MUTE 1        → *SET ZONE-A.MUTE 1          (echo only)
+GET IN.COUNT             → +IN.COUNT 4
+GET OUTPUT.COUNT         → +OUTPUT.COUNT 4
+GET IN-100.DYN.SIGNAL    → +IN-100.DYN.SIGNAL -12.50
+GET OUT-1.DYN.SIGNAL     → +OUT-1.DYN.SIGNAL -8.00
 ```
 
-Response lines starting with `+` carry values; lines starting with `*` are command echoes and are ignored.
-
-> **Note:** If your firmware uses a different gain range or mute command format, adjust `GAIN_MIN`, `GAIN_MAX` in `const.py` and `_parse_bool_response` in `blaze_client.py`.
+Response lines starting with `+` carry values; lines starting with `*` are command echoes.
 
 ---
 
@@ -117,6 +128,8 @@ async def main():
         client = BlazeClient(session, "10.17.10.31")
         print("Zone A gain:", await client.get_gain("A"))
         print("Zone A muted:", await client.get_mute("A"))
+        print("Input count:", await client.get_input_count())
+        print("Output count:", await client.get_output_count())
 
 asyncio.run(main())
 EOF
@@ -127,8 +140,7 @@ EOF
 ## Future Roadmap
 
 - Zone source selection (input routing)
-- Zone output configuration
-- Push-mode updates (if the device sends unsolicited state notifications)
+- Push-mode updates via `SUBSCRIBE` command
 
 ---
 
