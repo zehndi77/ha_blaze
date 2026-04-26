@@ -81,11 +81,12 @@ Repeat for each amplifier. Each amp becomes its own device with 9 entities (4 ga
 The 504D exposes a WebSocket endpoint at `ws://<host>/ws`. Commands are plain text:
 
 ```
-GET ZONE-A.GAIN          → +Zone-A.GAIN -10.00
-SET ZONE-A.GAIN -15.00   → +Zone-A.GAIN -15.00
-INC ZONE-A.GAIN -3       → +Zone-A.GAIN -18.00  (+ *INC ZONE-A.GAIN -3 echo)
-GET ZONE-A.MUTE          → +Zone-A.MUTE OFF
-SET ZONE-A.MUTE ON       → +Zone-A.MUTE ON
+INC ZONE-A.GAIN 0        → +Zone-A.GAIN -10.00        (read current gain)
+INC ZONE-A.GAIN -3       → +Zone-A.GAIN -13.00         (adjust gain; also echoes *INC ...)
+GET ZONE-A.MUTE          → +ZONE-A.MUTE 0              (0 = unmuted)
+GET ZONE-A.MUTE          → +ZONE-A.MUTE 1              (1 = muted)
+SET ZONE-A.MUTE ON       → *SET ZONE-A.MUTE ON         (echo only, no + response)
+SET ZONE-A.MUTE OFF      → *SET ZONE-A.MUTE OFF
 ```
 
 Response lines starting with `+` carry values; lines starting with `*` are command echoes and are ignored.
@@ -98,7 +99,7 @@ Response lines starting with `+` carry values; lines starting with `*` are comma
 
 ```bash
 # Clone and install test dependencies
-git clone https://github.com/YOUR_GITHUB/blaze504d-ha
+git clone https://github.com/zehndi77/ha_blaze
 cd blaze504d-ha
 pip install -r requirements_test.txt
 
