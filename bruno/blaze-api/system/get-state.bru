@@ -1,0 +1,17 @@
+meta {
+  name: Get System State
+  type: http
+  seq: 1
+}
+
+docs {
+  Command:  GET SYSTEM.STATUS.STATE
+  Response: +SYSTEM.STATUS.STATE "ON"
+            *GET SYSTEM.STATUS.STATE
+
+  States:
+    INIT    - amplifier is initializing
+    STANDBY - amplifier is in standby (low power)
+    ON      - amplifier is on and active
+    FAULT   - non-recoverable error
+}

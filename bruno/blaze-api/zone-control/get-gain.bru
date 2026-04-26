@@ -1,0 +1,14 @@
+meta {
+  name: Get Zone Gain
+  type: http
+  seq: 1
+}
+
+docs {
+  Command:  GET ZONE-A.GAIN
+  Response: +ZONE-A.GAIN -10.00
+            *GET ZONE-A.GAIN
+
+  Replace A with B, C, D (4ch) or A-H (8ch).
+  Range: [-80.0, 0.0] dB (fetch exact range via ZONE-A.GAIN_MIN / ZONE-A.GAIN_MAX)
+}

@@ -1,6 +1,7 @@
-# Blaze PowerZone Connect 504D — Home Assistant Integration
+# Blaze PowerZone Connect — Home Assistant Integration
 
-Control your **Blaze PowerZone Connect 504D** amplifier from Home Assistant. Set zone gain levels, mute individual zones, and mute all zones at once — no YAML required.
+Control your **Blaze PowerZone Connect** amplifier from Home Assistant. Set zone gain levels, mute individual zones, and mute all zones at once — no YAML required.
+Currently this is only programmed to work with a 4-channel amplifier.
 
 ---
 
@@ -19,7 +20,7 @@ The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the na
 ## Requirements
 
 - Home Assistant 2024.1 or newer
-- Blaze PowerZone Connect 504D reachable on your network
+- Blaze PowerZone Connect reachable on your network
 - (Optional) [HACS](https://hacs.xyz) for easy installation and updates
 
 ---
@@ -30,7 +31,7 @@ The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the na
 
 1. Open HACS → Integrations → ⋮ → Custom repositories
 2. Add `https://github.com/zehndi77/ha_blaze` as an **Integration**
-3. Search for **Blaze PowerZone Connect 504D** and install
+3. Search for **Blaze PowerZone Connect** and install
 4. Restart Home Assistant
 
 ### Manual
@@ -43,7 +44,7 @@ The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the na
 ## Setup
 
 1. Go to **Settings → Devices & Services → Add Integration**
-2. Search for **Blaze 504D**
+2. Search for **Blaze**
 3. Enter the **IP address or hostname** of your amplifier
 4. Give it a friendly name (optional)
 5. Click Submit — HA will verify connectivity before saving
@@ -78,7 +79,7 @@ Repeat for each amplifier. Each amp becomes its own device with 9 entities (4 ga
 
 ## Protocol Notes
 
-The 504D exposes a WebSocket endpoint at `ws://<host>/ws`. Commands are plain text:
+The Blaze PowerZone  exposes a WebSocket endpoint at `ws://<host>/ws`. Commands are plain text:
 
 ```
 INC ZONE-A.GAIN 0        → +Zone-A.GAIN -10.00        (read current gain)

@@ -1,0 +1,17 @@
+meta {
+  name: Set Zone Mute
+  type: http
+  seq: 4
+}
+
+docs {
+  Mute on:
+    Command:  SET ZONE-A.MUTE ON
+    Response: *SET ZONE-A.MUTE ON   (echo only, no + response)
+
+  Mute off:
+    Command:  SET ZONE-A.MUTE OFF
+    Response: *SET ZONE-A.MUTE OFF
+
+  Note: hardware-confirmed format is ON/OFF (not 0/1 boolean).
+}

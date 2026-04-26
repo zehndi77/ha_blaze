@@ -1,4 +1,4 @@
-"""Number entities for Blaze 504D zone gain control."""
+"""Number entities for Blaze amplifier zone gain control."""
 from __future__ import annotations
 
 from homeassistant.components.number import NumberEntity
@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ZONES, GAIN_MIN, GAIN_MAX, GAIN_STEP
+from .const import GAIN_MIN, GAIN_MAX, GAIN_STEP
 from .coordinator import BlazeCoordinator
 from .entity import BlazeBaseEntity
 
@@ -18,7 +18,7 @@ async def async_setup_entry(
 ) -> None:
     coordinator: BlazeCoordinator = entry.runtime_data
     async_add_entities(
-        BlazeZoneGain(coordinator, entry, zone) for zone in ZONES
+        BlazeZoneGain(coordinator, entry, zone) for zone in coordinator.zones
     )
 
 

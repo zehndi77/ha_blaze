@@ -1,0 +1,13 @@
+meta {
+  name: Power OFF (Standby)
+  type: http
+  seq: 3
+}
+
+docs {
+  Command:  POWER_OFF
+  Response: *POWER_OFF
+
+  Puts the amplifier into standby.
+  Check SYSTEM.STATUS.STATE after to confirm state = STANDBY.
+}

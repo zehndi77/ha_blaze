@@ -1,0 +1,13 @@
+meta {
+  name: Get Serial Number
+  type: http
+  seq: 2
+}
+
+docs {
+  Command:  GET SYSTEM.DEVICE.SERIAL
+  Response: +SYSTEM.DEVICE.SERIAL "2122023201X00031"
+            *GET SYSTEM.DEVICE.SERIAL
+
+  ncat: echo "GET SYSTEM.DEVICE.SERIAL" | ncat {{host}} 7621 --no-shutdown -i 1
+}

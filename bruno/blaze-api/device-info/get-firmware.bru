@@ -1,0 +1,15 @@
+meta {
+  name: Get Firmware Version
+  type: http
+  seq: 3
+}
+
+docs {
+  Command:  GET SYSTEM.DEVICE.FIRMWARE
+  Response: +SYSTEM.DEVICE.FIRMWARE "1.6.0"
+            *GET SYSTEM.DEVICE.FIRMWARE
+
+  Also useful:
+    GET SYSTEM.DEVICE.FIRMWARE_DATE  → +SYSTEM.DEVICE.FIRMWARE_DATE "Nov 5 2021 07:51:56"
+    GET API_VERSION                   → +API_VERSION "1.6"
+}

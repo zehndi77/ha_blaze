@@ -1,0 +1,20 @@
+meta {
+  name: Blaze Pascal Series API
+  type: collection
+  version: 1
+}
+
+docs {
+  # Blaze Pascal Series Amplifier API
+
+  Transport: WebSocket ws://{{host}}/ws  OR  TCP {{host}}:7621
+
+  This collection documents all API commands. Since Bruno does not support
+  WebSocket natively, use the test scripts in docs/scripts/ for live testing:
+
+    python docs/scripts/blaze_ws.py {{host}} "GET ZONE-A.GAIN"
+    python docs/scripts/blaze_tcp.py {{host}}
+
+  Or interactively via ncat:
+    echo "GET ZONE.COUNT" | ncat {{host}} 7621 --no-shutdown -i 1
+}

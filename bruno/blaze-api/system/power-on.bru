@@ -1,0 +1,13 @@
+meta {
+  name: Power ON
+  type: http
+  seq: 2
+}
+
+docs {
+  Command:  POWER_ON
+  Response: *POWER_ON
+
+  Wakes the amplifier from standby.
+  Check SYSTEM.STATUS.STATE after to confirm state = ON.
+}
