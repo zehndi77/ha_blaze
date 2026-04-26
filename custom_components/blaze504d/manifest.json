@@ -1,0 +1,12 @@
+{
+  "domain": "blaze504d",
+  "name": "Blaze PowerZone Connect 504D",
+  "version": "0.1.0",
+  "documentation": "https://github.com/YOUR_GITHUB/blaze504d-ha",
+  "issue_tracker": "https://github.com/YOUR_GITHUB/blaze504d-ha/issues",
+  "codeowners": ["@YOUR_GITHUB"],
+  "requirements": [],
+  "dependencies": [],
+  "iot_class": "local_polling",
+  "config_flow": true
+}

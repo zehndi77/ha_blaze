@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Blaze 504D",
+        "description": "Enter the IP address or hostname of your Blaze PowerZone Connect 504D amplifier.",
+        "data": {
+          "host": "Host (IP or hostname)",
+          "name": "Friendly name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect. Check the host address and ensure the amplifier is reachable.",
+      "unknown": "Unexpected error. Check the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This amplifier is already configured."
+    }
+  }
+}
