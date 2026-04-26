@@ -59,6 +59,7 @@ class BlazeClient:
                         line = msg.data.strip()
                         if line.startswith("+"):
                             return line
+                        _LOGGER.debug("Blaze WS recv: %r", line)
                         # device echoes the command back prefixed with '*'; skip it
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                         self._ws = None
@@ -93,17 +94,50 @@ class BlazeClient:
             raise ValueError(f"Zone must be one of {ZONES}, got {zone!r}")
         return f"ZONE-{zone}"
 
+    async def _send_fire(self, command: str) -> None:
+        """Send a command and accept the '*' echo as confirmation (no '+' required).
+
+        Used for SET commands where the device does not send a '+' value response,
+        only echoes the command back with a '*' prefix.
+        """
+        await self._ensure_connected()
+        assert self._ws is not None
+        try:
+            await self._ws.send_str(command)
+            async with asyncio.timeout(WS_TIMEOUT):
+                while True:
+                    msg = await self._ws.receive()
+                    if msg.type == aiohttp.WSMsgType.TEXT:
+                        line = msg.data.strip()
+                        _LOGGER.debug("Blaze WS recv: %r", line)
+                        if line.startswith("+") or line.startswith("*"):
+                            return
+                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                        self._ws = None
+                        raise BlazeConnectionError("WebSocket closed unexpectedly")
+        except asyncio.TimeoutError as err:
+            self._ws = None
+            raise BlazeConnectionError(f"Timeout waiting for ack of '{command}'") from err
+        except aiohttp.ClientError as err:
+            self._ws = None
+            raise BlazeConnectionError(f"WebSocket error: {err}") from err
+
     async def get_gain(self, zone: str) -> float:
-        """Return current gain in dB for the given zone."""
+        """Return current gain in dB. Uses INC 0 as a no-op read (confirmed working)."""
         async with self._lock:
-            resp = await self._send_recv(f"GET {self._zone_tag(zone)}.GAIN")
+            resp = await self._send_recv(f"INC {self._zone_tag(zone)}.GAIN 0")
         return self._parse_float_response(resp)
 
     async def set_gain(self, zone: str, db: float) -> float:
-        """Set absolute gain in dB. Returns confirmed value."""
-        async with self._lock:
-            resp = await self._send_recv(f"SET {self._zone_tag(zone)}.GAIN {db:.2f}")
-        return self._parse_float_response(resp)
+        """Set absolute gain in dB using INC delta (confirmed working protocol).
+
+        Reads current value first, then increments by the needed delta.
+        """
+        current = await self.get_gain(zone)
+        delta = round(db - current, 2)
+        if abs(delta) < 0.01:
+            return current
+        return await self.inc_gain(zone, delta)
 
     async def inc_gain(self, zone: str, delta: float) -> float:
         """Increment gain by delta dB. Returns new absolute value."""
@@ -112,16 +146,21 @@ class BlazeClient:
         return self._parse_float_response(resp)
 
     async def get_mute(self, zone: str) -> bool:
-        """Return mute state for the given zone."""
+        """Return mute state for the given zone.
+
+        NOTE: Mute query command unconfirmed — coordinator falls back to cached
+        value if this times out. To find the correct command, check HA logs for
+        'Blaze WS recv' debug lines after running 'GET ZONE-A.MUTE'.
+        """
         async with self._lock:
             resp = await self._send_recv(f"GET {self._zone_tag(zone)}.MUTE")
         return self._parse_bool_response(resp)
 
     async def set_mute(self, zone: str, muted: bool) -> None:
-        """Set mute state for the given zone."""
+        """Set mute state. Accepts '*' echo as confirmation (SET may not return '+')."""
         value = "ON" if muted else "OFF"
         async with self._lock:
-            await self._send_recv(f"SET {self._zone_tag(zone)}.MUTE {value}")
+            await self._send_fire(f"SET {self._zone_tag(zone)}.MUTE {value}")
 
     async def set_all_mute(self, muted: bool) -> None:
         """Mute or unmute all zones sequentially."""

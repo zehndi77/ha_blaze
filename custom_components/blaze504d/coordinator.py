@@ -7,7 +7,7 @@ from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .blaze_client import BlazeClient, BlazeConnectionError
+from .blaze_client import BlazeClient, BlazeConnectionError, BlazeProtocolError
 from .const import DEFAULT_SCAN_INTERVAL, ZONES
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,7 +31,13 @@ class BlazeCoordinator(DataUpdateCoordinator[dict[str, dict]]):
             data: dict[str, dict] = {}
             for zone in ZONES:
                 gain = await self.client.get_gain(zone)
-                muted = await self.client.get_mute(zone)
+                try:
+                    muted = await self.client.get_mute(zone)
+                except (BlazeConnectionError, BlazeProtocolError):
+                    # Mute query format unconfirmed; keep previous value or default False
+                    prev = (self.data or {}).get(zone, {})
+                    muted = prev.get("muted", False)
+                    _LOGGER.debug("Mute query failed for zone %s, using cached value %s", zone, muted)
                 data[zone] = {"gain": gain, "muted": muted}
             return data
         except BlazeConnectionError as err:
