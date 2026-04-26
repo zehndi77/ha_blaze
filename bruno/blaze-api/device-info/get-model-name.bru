@@ -1,14 +1,18 @@
 meta {
   name: Get Model Name
-  type: http
+  type: ws
   seq: 1
 }
 
-docs {
-  Command:  GET SYSTEM.DEVICE.MODEL_NAME
-  Response: +SYSTEM.DEVICE.MODEL_NAME "PowerZone Connect 504D"
-            *GET SYSTEM.DEVICE.MODEL_NAME
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  ncat: echo "GET SYSTEM.DEVICE.MODEL_NAME" | ncat {{host}} 7621 --no-shutdown -i 1
-  ws:   python docs/scripts/blaze_ws.py {{host}} "GET SYSTEM.DEVICE.MODEL_NAME"
+body:ws {
+  name: message 1
+  content: '''
+    GET SYSTEM.DEVICE.MODEL_NAME
+  '''
 }

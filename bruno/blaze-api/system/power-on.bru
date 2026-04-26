@@ -1,13 +1,18 @@
 meta {
   name: Power ON
-  type: http
+  type: ws
   seq: 2
 }
 
-docs {
-  Command:  POWER_ON
-  Response: *POWER_ON
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Wakes the amplifier from standby.
-  Check SYSTEM.STATUS.STATE after to confirm state = ON.
+body:ws {
+  name: message 1
+  content: '''
+    POWER_ON
+  '''
 }

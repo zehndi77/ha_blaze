@@ -1,13 +1,18 @@
 meta {
   name: Get Zone Mute
-  type: http
+  type: ws
   seq: 3
 }
 
-docs {
-  Command:  GET ZONE-A.MUTE
-  Response: +ZONE-A.MUTE 0
-            *GET ZONE-A.MUTE
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  0 = unmuted, 1 = muted
+body:ws {
+  name: message 1
+  content: '''
+    GET ZONE-{{zone}}.MUTE
+  '''
 }

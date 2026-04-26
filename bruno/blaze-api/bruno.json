@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Blaze Pascal Series API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,17 +1,18 @@
 meta {
   name: Get System State
-  type: http
+  type: ws
   seq: 1
 }
 
-docs {
-  Command:  GET SYSTEM.STATUS.STATE
-  Response: +SYSTEM.STATUS.STATE "ON"
-            *GET SYSTEM.STATUS.STATE
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  States:
-    INIT    - amplifier is initializing
-    STANDBY - amplifier is in standby (low power)
-    ON      - amplifier is on and active
-    FAULT   - non-recoverable error
+body:ws {
+  name: message 1
+  content: '''
+    GET SYSTEM.STATUS.STATE
+  '''
 }

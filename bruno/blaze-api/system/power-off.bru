@@ -1,13 +1,18 @@
 meta {
   name: Power OFF (Standby)
-  type: http
+  type: ws
   seq: 3
 }
 
-docs {
-  Command:  POWER_OFF
-  Response: *POWER_OFF
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Puts the amplifier into standby.
-  Check SYSTEM.STATUS.STATE after to confirm state = STANDBY.
+body:ws {
+  name: message 1
+  content: '''
+    POWER_OFF
+  '''
 }

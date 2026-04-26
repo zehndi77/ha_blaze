@@ -1,13 +1,18 @@
 meta {
   name: Get Serial Number
-  type: http
+  type: ws
   seq: 2
 }
 
-docs {
-  Command:  GET SYSTEM.DEVICE.SERIAL
-  Response: +SYSTEM.DEVICE.SERIAL "2122023201X00031"
-            *GET SYSTEM.DEVICE.SERIAL
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  ncat: echo "GET SYSTEM.DEVICE.SERIAL" | ncat {{host}} 7621 --no-shutdown -i 1
+body:ws {
+  name: message 1
+  content: '''
+    GET SYSTEM.DEVICE.SERIAL
+  '''
 }

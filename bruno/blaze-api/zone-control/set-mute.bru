@@ -1,17 +1,18 @@
 meta {
   name: Set Zone Mute
-  type: http
+  type: ws
   seq: 4
 }
 
-docs {
-  Mute on:
-    Command:  SET ZONE-A.MUTE ON
-    Response: *SET ZONE-A.MUTE ON   (echo only, no + response)
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Mute off:
-    Command:  SET ZONE-A.MUTE OFF
-    Response: *SET ZONE-A.MUTE OFF
-
-  Note: hardware-confirmed format is ON/OFF (not 0/1 boolean).
+body:ws {
+  name: message 1
+  content: '''
+    SET ZONE-{{zone}}.MUTE 1
+  '''
 }

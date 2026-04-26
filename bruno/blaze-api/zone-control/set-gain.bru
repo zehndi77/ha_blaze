@@ -1,16 +1,18 @@
 meta {
   name: Set Zone Gain (INC)
-  type: http
+  type: ws
   seq: 2
 }
 
-docs {
-  SET does not return a +value response — use INC delta instead:
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Command:  INC ZONE-A.GAIN -5
-  Response: +ZONE-A.GAIN -15.00
-            *INC ZONE-A.GAIN -5
-
-  To set absolute value: read current gain, compute delta, send INC.
-  Example: current=-10, target=-15 → INC ZONE-A.GAIN -5.00
+body:ws {
+  name: message 1
+  content: '''
+    INC ZONE-{{zone}}.GAIN -5
+  '''
 }

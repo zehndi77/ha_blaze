@@ -1,28 +1,18 @@
 meta {
   name: Subscribe (all updates)
-  type: http
+  type: ws
   seq: 4
 }
 
-docs {
-  Subscribe to all register + dynamic updates at 1Hz:
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-    Command:  SUBSCRIBE * 1
-    Response: (stream) +IN-100.DYN.SIGNAL -49.9777
-                       +IN-100.DYN.CLIP 0
-                       +ZONE-A.DYN.SIGNAL -32.4
-                       ... (continuous)
-              *SUBSCRIBE * 1   (confirmation at end)
-
-  Subscribe types:
-    SUBSCRIBE REG   - register changes only
-    SUBSCRIBE DYN   - dynamic values only (signal levels)
-    SUBSCRIBE *     - both (default)
-
-  Frequency:
-    1   = 1 update/second
-    0.5 = 1 update/5 seconds
-
-  Unsubscribe:
-    UNSUBSCRIBE DYN → *UNSUBSCRIBE DYN
+body:ws {
+  name: message 1
+  content: '''
+    SUBSCRIBE * 1
+  '''
 }

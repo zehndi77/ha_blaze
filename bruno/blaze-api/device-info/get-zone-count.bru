@@ -1,14 +1,18 @@
 meta {
   name: Get Zone Count
-  type: http
+  type: ws
   seq: 4
 }
 
-docs {
-  Command:  GET ZONE.COUNT
-  Response: +ZONE.COUNT 4
-            *GET ZONE.COUNT
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Returns 2, 4, or 8 depending on device variant.
-  Use this as the first call to auto-detect device type.
+body:ws {
+  name: message 1
+  content: '''
+    GET ZONE.COUNT
+  '''
 }

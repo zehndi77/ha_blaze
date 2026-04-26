@@ -1,15 +1,18 @@
 meta {
   name: Get Firmware Version
-  type: http
+  type: ws
   seq: 3
 }
 
-docs {
-  Command:  GET SYSTEM.DEVICE.FIRMWARE
-  Response: +SYSTEM.DEVICE.FIRMWARE "1.6.0"
-            *GET SYSTEM.DEVICE.FIRMWARE
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
 
-  Also useful:
-    GET SYSTEM.DEVICE.FIRMWARE_DATE  → +SYSTEM.DEVICE.FIRMWARE_DATE "Nov 5 2021 07:51:56"
-    GET API_VERSION                   → +API_VERSION "1.6"
+body:ws {
+  name: message 1
+  content: '''
+    GET SYSTEM.DEVICE.FIRMWARE
+  '''
 }
