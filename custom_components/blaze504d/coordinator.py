@@ -26,10 +26,7 @@ class BlazeCoordinator(DataUpdateCoordinator[dict[str, dict]]):
         self.client = client
 
     async def _async_update_data(self) -> dict[str, dict]:
-        """Fetch gain and mute state for all zones.
-
-        Returns: {"A": {"gain": -10.0, "muted": False}, ...}
-        """
+        """Fetch gain and mute for all zones; returns {"A": {"gain": float, "muted": bool}, ...}."""
         try:
             data: dict[str, dict] = {}
             for zone in ZONES:

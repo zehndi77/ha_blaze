@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import voluptuous as vol
-import aiohttp
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
@@ -32,7 +31,6 @@ class BlazeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
 
-            # Prevent duplicate entries for the same host
             await self.async_set_unique_id(host)
             self._abort_if_unique_id_configured()
 

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.blaze504d.const import DOMAIN, GAIN_MIN, GAIN_MAX
+from custom_components.blaze504d.const import DOMAIN
 from tests.conftest import ZONE_DATA_ALL_UNMUTED
 
 

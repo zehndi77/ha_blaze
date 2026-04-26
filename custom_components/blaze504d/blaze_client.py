@@ -3,14 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
 
 import aiohttp
 
-from .const import ZONES, WS_TIMEOUT
-
-if TYPE_CHECKING:
-    pass
+from .const import ZONES, WS_TIMEOUT, WS_PATH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +30,7 @@ class BlazeClient:
 
     @property
     def _url(self) -> str:
-        return f"ws://{self._host}/ws"
+        return f"ws://{self._host}{WS_PATH}"
 
     async def _connect(self) -> None:
         """Open (or reopen) the WebSocket connection."""
@@ -56,7 +52,6 @@ class BlazeClient:
         assert self._ws is not None
         try:
             await self._ws.send_str(command)
-            # Read lines until we get the value response ('+') — skip echo ('*')
             async with asyncio.timeout(WS_TIMEOUT):
                 while True:
                     msg = await self._ws.receive()
@@ -64,7 +59,7 @@ class BlazeClient:
                         line = msg.data.strip()
                         if line.startswith("+"):
                             return line
-                        # '*' lines are command echoes — skip them
+                        # device echoes the command back prefixed with '*'; skip it
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                         self._ws = None
                         raise BlazeConnectionError("WebSocket closed unexpectedly")
