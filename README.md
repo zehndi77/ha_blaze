@@ -29,7 +29,7 @@ The integration talks to your amp over WebSocket (`ws://<host>/ws`) using the na
 ### Via HACS (recommended)
 
 1. Open HACS → Integrations → ⋮ → Custom repositories
-2. Add `https://github.com/YOUR_GITHUB/blaze504d-ha` as an **Integration**
+2. Add `https://github.com/zehndi77/ha_blaze` as an **Integration**
 3. Search for **Blaze PowerZone Connect 504D** and install
 4. Restart Home Assistant
 
