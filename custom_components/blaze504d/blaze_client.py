@@ -56,11 +56,14 @@ class BlazeClient:
                 while True:
                     msg = await self._ws.receive()
                     if msg.type == aiohttp.WSMsgType.TEXT:
-                        line = msg.data.strip()
-                        if line.startswith("+"):
-                            return line
-                        _LOGGER.debug("Blaze WS recv: %r", line)
-                        # device echoes the command back prefixed with '*'; skip it
+                        # A single WS frame may carry multiple lines (echo + value)
+                        for line in msg.data.splitlines():
+                            line = line.strip()
+                            if not line:
+                                continue
+                            if line.startswith("+"):
+                                return line
+                            _LOGGER.debug("Blaze WS recv: %r", line)
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                         self._ws = None
                         raise BlazeConnectionError("WebSocket closed unexpectedly")
@@ -81,7 +84,7 @@ class BlazeClient:
 
     @staticmethod
     def _parse_bool_response(response: str) -> bool:
-        """Parse '+Zone-A.MUTE ON' → True."""
+        """Parse '+ZONE-A.MUTE 0' → False, '+ZONE-A.MUTE 1' → True (also accepts ON/OFF)."""
         token = response.rsplit(" ", 1)[-1].upper()
         if token in ("ON", "1", "TRUE"):
             return True
@@ -108,10 +111,13 @@ class BlazeClient:
                 while True:
                     msg = await self._ws.receive()
                     if msg.type == aiohttp.WSMsgType.TEXT:
-                        line = msg.data.strip()
-                        _LOGGER.debug("Blaze WS recv: %r", line)
-                        if line.startswith("+") or line.startswith("*"):
-                            return
+                        for line in msg.data.splitlines():
+                            line = line.strip()
+                            if not line:
+                                continue
+                            _LOGGER.debug("Blaze WS recv: %r", line)
+                            if line.startswith("+") or line.startswith("*"):
+                                return
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                         self._ws = None
                         raise BlazeConnectionError("WebSocket closed unexpectedly")
@@ -146,12 +152,7 @@ class BlazeClient:
         return self._parse_float_response(resp)
 
     async def get_mute(self, zone: str) -> bool:
-        """Return mute state for the given zone.
-
-        NOTE: Mute query command unconfirmed — coordinator falls back to cached
-        value if this times out. To find the correct command, check HA logs for
-        'Blaze WS recv' debug lines after running 'GET ZONE-A.MUTE'.
-        """
+        """Return mute state. Confirmed: GET ZONE-A.MUTE → +ZONE-A.MUTE 0/1."""
         async with self._lock:
             resp = await self._send_recv(f"GET {self._zone_tag(zone)}.MUTE")
         return self._parse_bool_response(resp)
