@@ -7,14 +7,42 @@ from homeassistant.core import HomeAssistant
 from tests.conftest import ZONE_DATA_ALL_MUTED, ZONE_DATA_ALL_UNMUTED
 
 
+def _full_mock_client(**extra) -> MagicMock:
+    mc = MagicMock()
+    mc.get_gain = AsyncMock(return_value=-10.0)
+    mc.get_mute = AsyncMock(return_value=False)
+    mc.get_system_state = AsyncMock(return_value="ON")
+    mc.start_dyn_subscription = AsyncMock()
+    mc.get_input_count = AsyncMock(return_value=4)
+    mc.get_output_count = AsyncMock(return_value=4)
+    mc.get_dyn_snapshot = MagicMock(return_value={})
+    mc.close = AsyncMock()
+    for attr, val in extra.items():
+        setattr(mc, attr, val)
+    return mc
+
+
+def _setup_client_patch(mock_cls):
+    mc = mock_cls.return_value
+    mc.start_dyn_subscription = AsyncMock()
+    mc.get_input_count = AsyncMock(return_value=4)
+    mc.get_output_count = AsyncMock(return_value=4)
+    mc.get_dyn_snapshot = MagicMock(return_value={})
+    mc.close = AsyncMock()
+
+
 async def test_zone_mute_state_off(hass: HomeAssistant, mock_config_entry) -> None:
     mock_config_entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
-        new_callable=AsyncMock,
-        return_value=ZONE_DATA_ALL_UNMUTED,
+    with (
+        patch("custom_components.blaze504d.BlazeClient") as mock_cls,
+        patch(
+            "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
+            new_callable=AsyncMock,
+            return_value=ZONE_DATA_ALL_UNMUTED,
+        ),
     ):
+        _setup_client_patch(mock_cls)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -26,11 +54,15 @@ async def test_zone_mute_state_off(hass: HomeAssistant, mock_config_entry) -> No
 async def test_all_mute_on_when_all_zones_muted(hass: HomeAssistant, mock_config_entry) -> None:
     mock_config_entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
-        new_callable=AsyncMock,
-        return_value=ZONE_DATA_ALL_MUTED,
+    with (
+        patch("custom_components.blaze504d.BlazeClient") as mock_cls,
+        patch(
+            "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
+            new_callable=AsyncMock,
+            return_value=ZONE_DATA_ALL_MUTED,
+        ),
     ):
+        _setup_client_patch(mock_cls)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -43,11 +75,15 @@ async def test_all_mute_off_when_any_zone_unmuted(hass: HomeAssistant, mock_conf
     mock_config_entry.add_to_hass(hass)
     partial = {**ZONE_DATA_ALL_MUTED, "D": {"gain": -25.0, "muted": False}}
 
-    with patch(
-        "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
-        new_callable=AsyncMock,
-        return_value=partial,
+    with (
+        patch("custom_components.blaze504d.BlazeClient") as mock_cls,
+        patch(
+            "custom_components.blaze504d.coordinator.BlazeCoordinator._async_update_data",
+            new_callable=AsyncMock,
+            return_value=partial,
+        ),
     ):
+        _setup_client_patch(mock_cls)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -57,10 +93,7 @@ async def test_all_mute_off_when_any_zone_unmuted(hass: HomeAssistant, mock_conf
 
 async def test_zone_mute_turn_on(hass: HomeAssistant, mock_config_entry) -> None:
     mock_config_entry.add_to_hass(hass)
-    mock_client = MagicMock()
-    mock_client.set_mute = AsyncMock()
-    mock_client.get_gain = AsyncMock(return_value=-10.0)
-    mock_client.get_mute = AsyncMock(return_value=False)
+    mock_client = _full_mock_client(set_mute=AsyncMock())
 
     with patch("custom_components.blaze504d.BlazeClient", return_value=mock_client):
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
