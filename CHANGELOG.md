@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.2] - 2026-04-27
+
+### Fixed
+- **Root cause of zone gain jumping (e.g. 51 dB)**: The DYN subscription pushes all dynamic
+  register values at 1 Hz. Some registers — notably `VC-{VID}.VALUE` (hardware volume-control
+  knob position, 0–100 %) — have no `.DYN.` in their name so they bypassed the cache filter
+  and resolved the pending `_send_recv` future as if they were the GET ZONE-X.GAIN response.
+  `_parse_float_response("+VC-1.VALUE 51")` → **51.0 dB**.
+
+  Fix: `_send_recv` now stores `_pending_prefix = "+{REGISTER} "` (e.g. `"+ZONE-A.GAIN "`).
+  `_handle_incoming` only resolves the future for `+` lines that start with that prefix;
+  all other non-DYN `+` pushes are silently discarded. This makes every GET/INC command
+  immune to unrelated subscription pushes regardless of register name.
+
 ## [0.3.1] - 2026-04-27
 
 ### Fixed

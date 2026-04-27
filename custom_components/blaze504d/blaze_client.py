@@ -32,6 +32,7 @@ class BlazeClient:
         self._reader_task: asyncio.Task | None = None
         self._pending_future: asyncio.Future[str] | None = None
         self._pending_recv: bool = False  # True when _send_recv awaits +value; False for _send_fire awaiting *echo
+        self._pending_prefix: str | None = None  # Expected +REGISTER prefix for _send_recv; None = accept any +
 
     @property
     def _url(self) -> str:
@@ -79,11 +80,19 @@ class BlazeClient:
 
         fut = self._pending_future
         if fut and not fut.done():
-            if line.startswith("+") or line.startswith("#"):
+            if line.startswith("#"):
                 fut.set_result(line)
+            elif line.startswith("+"):
+                # Only resolve if the response register matches the one we asked for.
+                # This prevents subscription pushes for unrelated registers (e.g. +VC-1.VALUE 51
+                # from a hardware volume-control knob) from being misread as the gain value.
+                prefix = self._pending_prefix
+                if prefix is None or line.startswith(prefix):
+                    fut.set_result(line)
             elif line.startswith("*") and not self._pending_recv:
-                # Never resolve a _send_recv future with an echo: a delayed *INC/*SET echo
-                # arriving after lock release would corrupt the next command's + response.
+                # Never resolve a _send_recv future with a * echo: a delayed echo from a
+                # prior INC/SET arriving after its own lock window would corrupt the next
+                # command's future (e.g. *INC ZONE-A.GAIN 51.00 → parsed as 51 dB).
                 fut.set_result(line)
 
     async def _reader_loop(self) -> None:
@@ -117,6 +126,8 @@ class BlazeClient:
             assert self._ws is not None
             loop = asyncio.get_running_loop()
             self._pending_recv = True
+            cmd_parts = command.split()
+            self._pending_prefix = f"+{cmd_parts[1]} " if len(cmd_parts) >= 2 else None
             self._pending_future = loop.create_future()
             try:
                 await self._ws.send_str(command)
@@ -145,6 +156,7 @@ class BlazeClient:
             assert self._ws is not None
             loop = asyncio.get_running_loop()
             self._pending_recv = False
+            self._pending_prefix = None
             self._pending_future = loop.create_future()
             try:
                 await self._ws.send_str(command)
