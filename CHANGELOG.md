@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.1] - 2026-04-27
+
+### Fixed
+- **Zone gain jumping to wrong values (e.g. 51 dB)**: In v0.3.0 the reader-loop routed `*` echo
+  lines (e.g. `*INC ZONE-A.GAIN 51.00`) to `_pending_future` regardless of whether a
+  `_send_recv` or `_send_fire` command was in flight. A delayed INC echo arriving after its
+  own lock window but before the next GET's response resolved the wrong future, causing
+  `_parse_float_response` to parse the delta from the echo string as the gain reading.
+  
+  Fix: `_send_recv` now sets `_pending_recv = True`; `_handle_incoming` only routes `*` lines
+  to the future when `_pending_recv` is `False` (i.e. during `_send_fire`). `_send_recv`
+  futures are only resolved by `+` value or `#` error lines — never by echo lines.
+
 ## [0.3.0] - 2026-04-26
 
 ### Changed

@@ -31,6 +31,7 @@ class BlazeClient:
         self._dyn_subscribed = False
         self._reader_task: asyncio.Task | None = None
         self._pending_future: asyncio.Future[str] | None = None
+        self._pending_recv: bool = False  # True when _send_recv awaits +value; False for _send_fire awaiting *echo
 
     @property
     def _url(self) -> str:
@@ -77,8 +78,13 @@ class BlazeClient:
             return
 
         fut = self._pending_future
-        if fut and not fut.done() and line.startswith(("+", "*", "#")):
-            fut.set_result(line)
+        if fut and not fut.done():
+            if line.startswith("+") or line.startswith("#"):
+                fut.set_result(line)
+            elif line.startswith("*") and not self._pending_recv:
+                # Never resolve a _send_recv future with an echo: a delayed *INC/*SET echo
+                # arriving after lock release would corrupt the next command's + response.
+                fut.set_result(line)
 
     async def _reader_loop(self) -> None:
         """Background task: reads all incoming WS messages until disconnect."""
@@ -110,6 +116,7 @@ class BlazeClient:
             await self._ensure_connected()
             assert self._ws is not None
             loop = asyncio.get_running_loop()
+            self._pending_recv = True
             self._pending_future = loop.create_future()
             try:
                 await self._ws.send_str(command)
@@ -137,6 +144,7 @@ class BlazeClient:
             await self._ensure_connected()
             assert self._ws is not None
             loop = asyncio.get_running_loop()
+            self._pending_recv = False
             self._pending_future = loop.create_future()
             try:
                 await self._ws.send_str(command)
