@@ -12,6 +12,8 @@ def _full_mock_client(**extra) -> MagicMock:
     mc = MagicMock()
     mc.get_gain = AsyncMock(return_value=-10.0)
     mc.get_mute = AsyncMock(return_value=False)
+    mc.get_primary_src = AsyncMock(return_value=100)
+    mc.get_priority_src = AsyncMock(return_value=100)
     mc.get_system_state = AsyncMock(return_value="ON")
     mc.start_dyn_subscription = AsyncMock()
     mc.get_input_count = AsyncMock(return_value=4)
@@ -35,6 +37,8 @@ async def test_zone_gain_state(hass: HomeAssistant, mock_config_entry) -> None:
         ),
     ):
         mc = mock_cls.return_value
+        mc.get_primary_src = AsyncMock(return_value=100)
+        mc.get_priority_src = AsyncMock(return_value=100)
         mc.start_dyn_subscription = AsyncMock()
         mc.get_input_count = AsyncMock(return_value=4)
         mc.get_output_count = AsyncMock(return_value=4)

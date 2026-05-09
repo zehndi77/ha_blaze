@@ -1,5 +1,5 @@
 DOMAIN = "blaze504d"
-PLATFORMS = ["number", "switch", "sensor"]
+PLATFORMS = ["number", "select", "switch", "sensor"]
 
 CONF_HOST = "host"
 CONF_NAME = "name"
@@ -34,3 +34,31 @@ ANALOG_INPUT_BASE_ID = 100
 OUTPUT_BASE_ID = 1
 SPDIF_INPUT_IDS = [200, 201]
 DANTE_INPUT_IDS = [300, 301, 302, 303]
+
+INPUT_SOURCE_MAP: dict[int, str] = {
+    0: "Silent",
+    100: "Analog 1",
+    101: "Analog 2",
+    102: "Analog 3",
+    103: "Analog 4",
+    104: "Analog 5",
+    105: "Analog 6",
+    106: "Analog 7",
+    107: "Analog 8",
+    200: "SPDIF 1 (Left)",
+    201: "SPDIF 1 (Right)",
+    300: "Dante 1",
+    301: "Dante 2",
+    302: "Dante 3",
+    303: "Dante 4",
+    400: "Noise Generator",
+    500: "Mix 1",
+    501: "Mix 2",
+    502: "Mix 3",
+    503: "Mix 4",
+    504: "Mix 5",
+    505: "Mix 6",
+    506: "Mix 7",
+    507: "Mix 8",
+}
+INPUT_SOURCE_ID_BY_NAME: dict[str, int] = {v: k for k, v in INPUT_SOURCE_MAP.items()}

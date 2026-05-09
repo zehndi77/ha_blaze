@@ -313,6 +313,27 @@ class BlazeClient:
         for zone in zones:
             await self.set_mute(zone, muted)
 
+    # ── Zone source routing ────────────────────────────────────────────────────
+
+    async def _get_src(self, zone: str, register: str) -> int:
+        resp = await self._send_recv(f"GET {self._zone_tag(zone)}.{register}")
+        return int(self._parse_float_response(resp))
+
+    async def _set_src(self, zone: str, register: str, src_id: int) -> None:
+        await self._send_fire(f"SET {self._zone_tag(zone)}.{register} {src_id}")
+
+    async def get_primary_src(self, zone: str) -> int:
+        return await self._get_src(zone, "PRIMARY_SRC")
+
+    async def set_primary_src(self, zone: str, src_id: int) -> None:
+        await self._set_src(zone, "PRIMARY_SRC", src_id)
+
+    async def get_priority_src(self, zone: str) -> int:
+        return await self._get_src(zone, "PRIORITY_SRC")
+
+    async def set_priority_src(self, zone: str, src_id: int) -> None:
+        await self._set_src(zone, "PRIORITY_SRC", src_id)
+
     async def close(self) -> None:
         if self._reader_task and not self._reader_task.done():
             self._reader_task.cancel()

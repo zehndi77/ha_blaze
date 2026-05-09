@@ -20,10 +20,10 @@ def mock_config_entry() -> MockConfigEntry:
 
 
 ZONE_DATA_ALL_UNMUTED = {
-    "A": {"gain": -10.0, "muted": False},
-    "B": {"gain": -15.0, "muted": False},
-    "C": {"gain": -20.0, "muted": False},
-    "D": {"gain": -25.0, "muted": False},
+    "A": {"gain": -10.0, "muted": False, "primary_src": 100, "priority_src": 100},
+    "B": {"gain": -15.0, "muted": False, "primary_src": 100, "priority_src": 100},
+    "C": {"gain": -20.0, "muted": False, "primary_src": 100, "priority_src": 100},
+    "D": {"gain": -25.0, "muted": False, "primary_src": 100, "priority_src": 100},
 }
 
 ZONE_DATA_ALL_MUTED = {

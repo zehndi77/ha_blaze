@@ -15,6 +15,8 @@ def mock_client() -> MagicMock:
     client = MagicMock()
     client.get_gain = AsyncMock(return_value=-10.0)
     client.get_mute = AsyncMock(return_value=False)
+    client.get_primary_src = AsyncMock(return_value=100)
+    client.get_priority_src = AsyncMock(return_value=100)
     client.get_system_state = AsyncMock(return_value="ON")
     return client
 
@@ -28,8 +30,12 @@ async def test_coordinator_data_shape(hass: HomeAssistant, mock_client) -> None:
         assert zone in coordinator.data
         assert "gain" in coordinator.data[zone]
         assert "muted" in coordinator.data[zone]
+        assert "primary_src" in coordinator.data[zone]
+        assert "priority_src" in coordinator.data[zone]
         assert isinstance(coordinator.data[zone]["gain"], float)
         assert isinstance(coordinator.data[zone]["muted"], bool)
+        assert isinstance(coordinator.data[zone]["primary_src"], int)
+        assert isinstance(coordinator.data[zone]["priority_src"], int)
 
 
 async def test_coordinator_handles_connection_error_gracefully(

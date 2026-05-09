@@ -49,7 +49,17 @@ class BlazeCoordinator(DataUpdateCoordinator[dict]):
                 except (BlazeConnectionError, BlazeProtocolError):
                     muted = prev.get("muted", False)
                     _LOGGER.debug("Mute query failed for zone %s, using cached %s", zone, muted)
-                data[zone] = {"gain": gain, "muted": muted}
+                try:
+                    primary_src = await self.client.get_primary_src(zone)
+                except (BlazeConnectionError, BlazeProtocolError):
+                    primary_src = prev.get("primary_src")
+                    _LOGGER.debug("Primary src query failed for zone %s, using cached %s", zone, primary_src)
+                try:
+                    priority_src = await self.client.get_priority_src(zone)
+                except (BlazeConnectionError, BlazeProtocolError):
+                    priority_src = prev.get("priority_src")
+                    _LOGGER.debug("Priority src query failed for zone %s, using cached %s", zone, priority_src)
+                data[zone] = {"gain": gain, "muted": muted, "primary_src": primary_src, "priority_src": priority_src}
 
             try:
                 data["state"] = await self.client.get_system_state()

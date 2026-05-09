@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0] - 2026-05-09
+
+### Added
+- **Zone input source select entities**: two new `select` entities per zone — *Primary Source* (`ZONE-{ZID}.PRIMARY_SRC`) and *Priority Source* (`ZONE-{ZID}.PRIORITY_SRC`). All 23 input sources are available as named options: Silent, Analog 1–8, SPDIF 1 (Left/Right), Dante 1–4, Noise Generator, and Mix 1–8. Changing the selection immediately sends a `SET` command to the device
+- **`INPUT_SOURCE_MAP`** constant in `const.py` mapping all source IDs to human-readable names
+
 ## [0.3.2] - 2026-04-27
 
 ### Fixed

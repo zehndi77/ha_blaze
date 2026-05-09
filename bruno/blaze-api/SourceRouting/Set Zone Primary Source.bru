@@ -1,0 +1,54 @@
+meta {
+  name: Set Zone Primary Source
+  type: ws
+  seq: 1
+}
+
+ws {
+  url: ws://{{HOST}}/ws
+  body: ws
+  auth: none
+}
+
+body:ws {
+  name: message 1
+  content: '''
+    SET ZONE-{{zone}}.PRIMARY_SRC {{src}}
+  '''
+}
+
+docs {
+  5.2.6.3 ZONE-{ZID}.PRIMARY_SRC
+  TYPE: Register
+  METHODS: Get, Set
+  PARAMS:
+  {ZID}: See {ZID} Zones (see page 21)
+  VALUES: Input Source ID.
+  See {SID} Input Source (see page 21)
+  Example:
+  >> GET ZONE-A.PRIMARY_SRC
+  << +ZONE-A.PRIMARY_SRC 100
+  << *GET ZONE-A.PRIMARY_SRC
+  >> SET ZONE-A.PRIMARY_SRC 100
+  << *SET ZONE-A.PRIMARY_SRC 100
+  >> GET ZONE-A.STEREO
+  << +ZONE-A.PRIMARY_SRC 100
+  << *GET ZONE-A.PRIMARY_SRC 100
+  
+  5.2.6.4 ZONE-{ZID}.PRIORITY_SRC
+  TYPE: Register
+  METHODS: Get, Set
+  PARAMS:
+  {ZID}: See {ZID} Zones (see page 21)
+  VALUES: Input Source ID.
+  See {SID} Input Source (see page 21)
+  Example:
+  >> GET ZONE-A.PRIORITY_SRC
+  << +ZONE-A.PRIORITY_SRC 100
+  << *GET ZONE-A.PRIORITY_SRC
+  >> SET ZONE-A.PRIORITY_SRC 100
+  << *SET ZONE-A.PRIORITY_SRC 100
+  >> GET ZONE-A.STEREO
+  << +ZONE-A.PRIORITY_SRC 100
+  << *GET ZONE-A.PRIORITY_SRC 100
+}
